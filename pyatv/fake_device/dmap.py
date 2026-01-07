@@ -10,7 +10,7 @@ from pyatv.const import InputAction, RepeatState, ShuffleState
 from pyatv.protocols.dmap import parser, tag_definitions, tags
 from pyatv.support.net import unused_port
 
-from pyatv.fake_device import utils
+from pyatv.fake_device.utils import simple_get
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class FakeDmapState:
         """
         server = f"http://127.0.0.1:{port}"
         url = f"{server}/pair?pairingcode={expected_code}&servicename=test"
-        data, _ = await utils.simple_get(url)
+        data, _ = await simple_get(url)
 
         # Verify content returned in pairingresponse
         parsed = parser.parse(data, tag_definitions.lookup_tag)

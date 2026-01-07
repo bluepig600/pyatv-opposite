@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import logging
 from ipaddress import IPv4Address
+import socket
 import sys
 
 from zeroconf import ServiceInfo
@@ -35,8 +36,6 @@ def _mdns_type(protocol: Protocol) -> str:
 
 async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, protocol: Protocol, port: int):
     """Publish a service via mDNS."""
-    import socket
-    
     service_type = _mdns_type(protocol)
     if not service_type:
         _LOGGER.warning("No mDNS service type for protocol %s", protocol)
@@ -158,9 +157,12 @@ async def run_server(args):
     _LOGGER.info("All services published via mDNS")
     _LOGGER.info("Server '%s' is running. Press Ctrl+C to stop.", args.name)
     
+    # Create an event to keep the server running
+    stop_event = asyncio.Event()
+    
     try:
         # Keep running until interrupted
-        await asyncio.Event().wait()
+        await stop_event.wait()
     except KeyboardInterrupt:
         _LOGGER.info("Shutting down...")
     finally:

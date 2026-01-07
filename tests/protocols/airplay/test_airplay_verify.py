@@ -11,7 +11,7 @@ from pyatv.exceptions import AuthenticationError
 from pyatv.protocols.airplay.auth import pair_verify
 from pyatv.support import http
 
-from tests.fake_device.airplay import DEVICE_CREDENTIALS
+from pyatv.fake_device.airplay import DEVICE_CREDENTIALS
 
 pytestmark = pytest.mark.asyncio
 

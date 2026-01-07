@@ -1,4 +1,4 @@
-A client library for Apple TV and AirPlay devices
+A Python library for Apple TV and AirPlay devices
 =================================================
 
 <img src="https://raw.githubusercontent.com/postlund/pyatv/master/docs/assets/img/logo.svg?raw=true" width="150">
@@ -17,6 +17,8 @@ This is an asyncio python library for interacting with Apple TV and AirPlay devi
 targets Apple TVs (all generations, **including tvOS 15 and later**), but also supports audio streaming via AirPlay
 to receivers like the HomePod, AirPort Express and third-party speakers. It can act as remote control to the Music
 app/iTunes in macOS.
+
+**NEW**: This library can now also emulate an Apple TV device, allowing you to receive commands from the Apple TV Remote app!
 
 All the documentation you need is available at **[pyatv.dev](https://pyatv.dev)**.
 
@@ -83,6 +85,52 @@ Device state: Playing
      Shuffle: Off
 $ atvremote -s 10.0.10.254 pause
 $ atvremote -n FakeATV play
+```
+
+## Running as an Apple TV Server
+
+You can also run pyatv as a server that emulates an Apple TV, allowing you to receive commands from the Apple TV Remote app:
+
+```raw
+$ pip install pyatv
+$ atvserver --name "My Fake Apple TV" --mrp --airplay
+INFO - Added MRP service
+INFO - Added AirPlay service
+INFO - Fake Apple TV server started
+INFO - Publishing My Fake Apple TV._mediaremotetv._tcp.local. on port 49152
+INFO - Publishing My Fake Apple TV._airplay._tcp.local. on port 49153
+INFO - All services published via mDNS
+INFO - Server 'My Fake Apple TV' is running. Press Ctrl+C to stop.
+```
+
+The fake Apple TV will now appear in the Apple TV Remote app on iOS devices on the same network!
+
+Available server options:
+- `--mrp`: Enable Media Remote Protocol (Apple TV 4 and later)
+- `--airplay`: Enable AirPlay protocol
+- `--dmap`: Enable DMAP protocol (Apple TV 3 and earlier)
+- `--companion`: Enable Companion protocol
+- `--raop`: Enable RAOP (Remote Audio Output Protocol)
+- `--all`: Enable all protocols
+- `--name`: Set custom device name
+- `--id`: Set custom unique identifier
+- `--debug`: Enable debug logging
+
+You can also create a fake Apple TV server programmatically. See `examples/server.py` for a complete example.
+
+```python
+import asyncio
+from pyatv.const import Protocol
+from pyatv.fake_device import FakeAppleTV
+
+async def main():
+    loop = asyncio.get_event_loop()
+    fake_atv = FakeAppleTV(loop, test_mode=False)
+    fake_atv.add_service(Protocol.MRP)
+    await fake_atv.start()
+    # Server is now running...
+
+asyncio.run(main())
 ```
 
 You can also run it inside a container (x86_64, aarch64, armv7):

@@ -11,7 +11,7 @@ from pyatv.conf import AppleTV, ManualService
 from pyatv.const import Protocol
 from pyatv.storage.memory_storage import MemoryStorage
 
-from tests.fake_device import FakeAppleTV
+from pyatv.fake_device import FakeAppleTV
 
 
 class MrpAuthFunctionalTest(AioHTTPTestCase):

@@ -12,7 +12,7 @@ from pyatv.protocols.airplay.auth.legacy import (
 )
 from pyatv.protocols.airplay.srp import LegacySRPAuthHandler
 
-from tests.fake_device.airplay import DEVICE_AUTH_KEY, DEVICE_IDENTIFIER, DEVICE_PIN
+from pyatv.fake_device.airplay import DEVICE_AUTH_KEY, DEVICE_IDENTIFIER, DEVICE_PIN
 
 IDENTIFIER = 8 * "11"
 INVALID_AUTH_KEY = 32 * "00"

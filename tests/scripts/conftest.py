@@ -14,7 +14,7 @@ import pytest_asyncio
 from pyatv.const import Protocol
 
 from tests import fake_udns
-from tests.fake_device import FakeAppleTV
+from pyatv.fake_device import FakeAppleTV
 from tests.utils import faketime, stub_sleep, unstub_sleep
 
 IP_1 = "10.0.0.1"

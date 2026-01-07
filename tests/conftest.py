@@ -20,7 +20,7 @@ from pyatv.support.http import create_session
 from pyatv.support.net import unused_port
 
 from tests import fake_udns
-from tests.fake_device.airplay import DEVICE_CREDENTIALS
+from pyatv.fake_device.airplay import DEVICE_CREDENTIALS
 from tests.fake_knock import create_knock_server
 from tests.utils import data_root, stub_sleep, unstub_sleep
 

@@ -10,8 +10,8 @@ from pyatv import connect
 from pyatv.conf import AppleTV, ManualService
 from pyatv.const import Protocol
 
-from tests.fake_device import FakeAppleTV, raop
-from tests.fake_device.raop import FakeRaopUseCases
+from pyatv.fake_device import FakeAppleTV, raop
+from pyatv.fake_device.raop import FakeRaopUseCases
 
 
 @pytest_asyncio.fixture(name="raop_device")

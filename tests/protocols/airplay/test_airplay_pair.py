@@ -11,7 +11,7 @@ from pyatv.auth.hap_pairing import parse_credentials
 from pyatv.const import Protocol
 from pyatv.storage.memory_storage import MemoryStorage
 
-from tests.fake_device.airplay import (
+from pyatv.fake_device.airplay import (
     DEVICE_AUTH_KEY,
     DEVICE_CREDENTIALS,
     DEVICE_IDENTIFIER,

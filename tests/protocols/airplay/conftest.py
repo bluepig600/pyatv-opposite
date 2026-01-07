@@ -9,7 +9,7 @@ from pyatv.conf import AppleTV, ManualService
 from pyatv.const import Protocol
 from pyatv.support.http import http_connect
 
-from tests.fake_device import FakeAppleTV
+from pyatv.fake_device import FakeAppleTV
 
 
 @pytest_asyncio.fixture(name="airplay_device")

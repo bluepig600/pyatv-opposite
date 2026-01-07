@@ -11,7 +11,7 @@ from pyatv.auth.server_auth import CLIENT_CREDENTIALS, PIN_CODE
 from pyatv.conf import AppleTV, ManualService
 from pyatv.const import Protocol
 
-from tests.fake_device import FakeAppleTV
+from pyatv.fake_device import FakeAppleTV
 
 
 class CompanionAuthFunctionalTest(AioHTTPTestCase):

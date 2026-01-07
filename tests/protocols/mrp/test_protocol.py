@@ -18,7 +18,7 @@ from pyatv.protocols.mrp.protocol import (
 )
 from pyatv.settings import InfoSettings
 
-from tests.fake_device import FakeAppleTV
+from pyatv.fake_device import FakeAppleTV
 from tests.utils import total_sleep_time, until
 
 

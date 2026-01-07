@@ -19,7 +19,7 @@ from pyatv.const import (
 from pyatv.interface import App, FeatureName, FeatureState, UserAccount
 from pyatv.protocols.companion.api import SystemStatus
 
-from tests.fake_device.companion import (
+from pyatv.fake_device.companion import (
     INITIAL_DURATION,
     INITIAL_RTI_TEXT,
     INITIAL_VOLUME,

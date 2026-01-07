@@ -53,6 +53,7 @@ setup(
             "atvproxy = pyatv.scripts.atvproxy:main",
             "atvscript = pyatv.scripts.atvscript:main",
             "atvlog = pyatv.scripts.atvlog:main",
+            "atvserver = pyatv.scripts.atvserver:main",
         ]
     },
     classifiers=[

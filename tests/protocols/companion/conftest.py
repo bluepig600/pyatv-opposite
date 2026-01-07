@@ -11,8 +11,8 @@ from pyatv.auth.server_auth import CLIENT_CREDENTIALS
 from pyatv.conf import AppleTV, ManualService
 from pyatv.const import Protocol
 
-from tests.fake_device import FakeAppleTV
-from tests.fake_device.companion import FakeCompanionUseCases
+from pyatv.fake_device import FakeAppleTV
+from pyatv.fake_device.companion import FakeCompanionUseCases
 
 
 @pytest_asyncio.fixture(name="companion_device")

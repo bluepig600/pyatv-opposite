@@ -31,9 +31,9 @@ from pyatv.support.http import (
 )
 
 from tests import common_functional_tests
-from tests.fake_device import FakeAppleTV
-from tests.fake_device.airplay import DEVICE_CREDENTIALS
-from tests.fake_device.mrp import (
+from pyatv.fake_device import FakeAppleTV
+from pyatv.fake_device.airplay import DEVICE_CREDENTIALS
+from pyatv.fake_device.mrp import (
     APP_NAME,
     BUILD_NUMBER,
     DEVICE_MODEL,

@@ -48,6 +48,10 @@ async def main():
     # Discover devices
     devices = await pyatv.scan(asyncio.get_event_loop())
     
+    if not devices:
+        print("No devices found")
+        return
+    
     # Connect to first device
     atv = await pyatv.connect(devices[0], asyncio.get_event_loop())
     

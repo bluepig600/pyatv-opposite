@@ -2,20 +2,110 @@
 
 This directory contains practical examples demonstrating how to use the pyatv library to interact with Apple TV and AirPlay devices.
 
-## Prerequisites
+## Setting Up Python Library
 
-Before running any examples, make sure you have:
+### Installation
 
-1. **Installed pyatv:**
+1. **Install Python 3.9 or higher** (check with `python --version`)
+
+2. **Create a virtual environment** (recommended):
+   ```bash
+   # Navigate to your project directory
+   cd your_project_directory
+   
+   # Create virtual environment
+   python -m venv venv
+   
+   # Activate virtual environment
+   # On Windows:
+   venv\Scripts\activate
+   # On macOS/Linux:
+   source venv/bin/activate
+   ```
+
+3. **Install pyatv:**
    ```bash
    pip install pyatv
    ```
 
-2. **Python 3.9 or higher** (check with `python --version`)
+4. **Verify installation:**
+   ```bash
+   python -c "import pyatv; print(pyatv.const.__version__)"
+   ```
 
-3. **Network access** to Apple TV/AirPlay devices on your local network
+### Creating Your First Script
 
-## Quick Start
+Create a new Python file (e.g., `my_atv_script.py`):
+
+```python
+import asyncio
+import pyatv
+
+async def main():
+    # Scan for devices
+    print("Scanning for Apple TV devices...")
+    devices = await pyatv.scan(asyncio.get_event_loop(), timeout=5)
+    
+    if not devices:
+        print("No devices found")
+        return
+    
+    print(f"Found {len(devices)} device(s)")
+    
+    # Connect to first device
+    print(f"Connecting to {devices[0].name}...")
+    atv = await pyatv.connect(devices[0], asyncio.get_event_loop())
+    
+    try:
+        # Get what's currently playing
+        playing = await atv.metadata.playing()
+        print("\nCurrently playing:")
+        print(playing)
+    finally:
+        atv.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Run your script:
+```bash
+python my_atv_script.py
+```
+
+### Project Structure
+
+For larger projects, organize your code like this:
+
+```
+your_project/
+├── venv/                 # Virtual environment (don't commit)
+├── src/
+│   ├── __init__.py
+│   └── atv_controller.py # Your pyatv code
+├── requirements.txt      # Dependencies
+└── main.py              # Entry point
+```
+
+Create a `requirements.txt`:
+```
+pyatv>=0.14.0
+```
+
+Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+## Running the Examples
+
+Before running any examples, make sure you have:
+
+1. **Completed the setup above** (installed pyatv in a virtual environment)
+
+2. **Network access** to Apple TV/AirPlay devices on your local network
+
+### Quick Start
 
 The easiest way to get started is with the automatic connection example:
 

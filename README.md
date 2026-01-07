@@ -24,10 +24,29 @@ All the documentation you need is available at **[pyatv.dev](https://pyatv.dev)*
 
 # Quick Start
 
-**Installation:**
+## Installation
+
+Install pyatv using pip:
 ```bash
 pip install pyatv
 ```
+
+For development projects, it's recommended to use a virtual environment:
+```bash
+# Create a virtual environment
+python -m venv venv
+
+# Activate it
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install pyatv
+pip install pyatv
+```
+
+## Usage
 
 **For Command-Line Usage** (no coding required):
 ```bash

@@ -22,6 +22,45 @@ app/iTunes in macOS.
 
 All the documentation you need is available at **[pyatv.dev](https://pyatv.dev)**.
 
+# Quick Start
+
+**Installation:**
+```bash
+pip install pyatv
+```
+
+**For Command-Line Usage** (no coding required):
+```bash
+# Discover and set up a device
+atvremote wizard
+
+# Control your device
+atvremote -n "Living Room" playing
+atvremote -n "Living Room" play
+```
+
+**For Python Development:**
+```python
+import asyncio
+import pyatv
+
+async def main():
+    # Discover devices
+    devices = await pyatv.scan(asyncio.get_event_loop())
+    
+    # Connect to first device
+    atv = await pyatv.connect(devices[0], asyncio.get_event_loop())
+    
+    # Print what's playing
+    print(await atv.metadata.playing())
+    
+    atv.close()
+
+asyncio.run(main())
+```
+
+See the [examples/](examples/) directory for more code samples, or check the [Getting Started](https://pyatv.dev/documentation/getting-started/) guide for full details.
+
 # What can it do?
 
 Some examples include:
@@ -37,10 +76,13 @@ Some examples include:
 
 ...and lots more! A complete list is available [here](https://pyatv.dev/documentation/supported_features/).
 
-# Great, but how do I use it?
+# More Examples
 
-All documentation (especially for developers) are available at [pyatv.dev](https://pyatv.dev).
-It is however possible to install with `pip` and set up a new device `atvremote`:
+All documentation (especially for developers) is available at [pyatv.dev](https://pyatv.dev).
+
+## Command-Line Tool
+
+The library includes `atvremote`, a command-line tool for controlling devices without writing code:
 
 ```raw
 $ pip install pyatv
@@ -152,6 +194,7 @@ Want to help out with `pyatv`? Press the button below to get a fully prepared de
 
 To save you some time, here are some shortcuts:
 
+* **[Examples](examples/)** - Code examples for common tasks
 * [Getting started](https://pyatv.dev/documentation/getting-started/)
 * [Documentation](https://pyatv.dev/documentation)
 * [Development](https://pyatv.dev/development)

@@ -35,6 +35,8 @@ def _mdns_type(protocol: Protocol) -> str:
 
 async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, protocol: Protocol, port: int):
     """Publish a service via mDNS."""
+    import socket
+    
     service_type = _mdns_type(protocol)
     if not service_type:
         _LOGGER.warning("No mDNS service type for protocol %s", protocol)
@@ -42,6 +44,14 @@ async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, pro
 
     # Get local IP address
     local_ip = get_local_address_reaching(IPv4Address("8.8.8.8"))
+    if local_ip is None:
+        # Fallback: get hostname IP
+        try:
+            hostname_ip = socket.gethostbyname(socket.gethostname())
+            local_ip = IPv4Address(hostname_ip)
+        except Exception:
+            # Last resort: use loopback
+            local_ip = IPv4Address("127.0.0.1")
     
     props = {}
     if protocol == Protocol.MRP:
@@ -85,7 +95,7 @@ async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, pro
         server=f"{name.replace(' ', '-')}.local.",
     )
     
-    _LOGGER.info("Publishing %s on port %d", service_name, port)
+    _LOGGER.info("Publishing %s on port %d (IP: %s)", service_name, port, local_ip)
     await aiozc.async_register_service(info)
     return info
 

@@ -69,6 +69,30 @@ cd pyatv-opposite
 pip install -e .
 ```
 
+## Updating from GitHub
+
+To update an existing installation to the latest version from GitHub:
+
+```shell
+pip install --upgrade --force-reinstall git+https://github.com/bluepig600/pyatv-opposite.git
+```
+
+Or to update to a specific branch:
+
+```shell
+pip install --upgrade --force-reinstall git+https://github.com/bluepig600/pyatv-opposite.git@refs/heads/<branch_name>
+```
+
+**Note:** The `--force-reinstall` flag ensures that the package is reinstalled even if pip thinks the version hasn't changed. This is important when installing from Git since version numbers may not reflect the latest changes.
+
+If you're using an editable installation (development mode), update by pulling the latest changes:
+
+```shell
+cd pyatv-opposite
+git pull origin main  # or your branch name
+pip install -e .      # reinstall dependencies if needed
+```
+
 # Great, but how do I use it?
 
 All documentation (especially for developers) are available at [pyatv.dev](https://pyatv.dev).

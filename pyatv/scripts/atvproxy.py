@@ -1,5 +1,24 @@
 #!/usr/bin/env python3
-"""Simple proxy server to intercept traffic."""
+"""Simple proxy server to intercept traffic.
+
+This proxy allows the Apple TV Remote app to connect and prints out button presses.
+
+Usage examples:
+    # Standalone mode (NO credentials needed - just capture buttons):
+    atvproxy mrp
+    
+    # Proxy mode (forward to real Apple TV):
+    atvproxy mrp --credentials <credentials> --remote-ip <apple_tv_ip>
+    
+    # Example with credentials:
+    atvproxy mrp --credentials 1234567890abcdef:1234567890abcdef --remote-ip 192.168.1.100
+    
+When the Apple TV Remote app connects, all button presses will be printed:
+    >>> BUTTON PRESSED: UP <<<
+    >>> COMMAND: PLAY <<<
+    
+In standalone mode, commands are not forwarded to a real Apple TV.
+"""
 
 import argparse
 import asyncio
@@ -8,6 +27,8 @@ from functools import partial
 from io import BytesIO
 from ipaddress import IPv4Address
 import logging
+import socket
+import struct
 import sys
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union, cast
 
@@ -56,6 +77,7 @@ from pyatv.protocols.companion.protocol import (
 )
 from pyatv.protocols.companion.server_auth import CompanionServerAuth
 from pyatv.protocols.mrp import protobuf
+from pyatv.protocols.mrp import messages
 from pyatv.protocols.mrp.connection import MrpConnection
 from pyatv.protocols.mrp.protocol import MrpProtocol
 from pyatv.protocols.mrp.server_auth import MrpServerAuth
@@ -85,6 +107,13 @@ DEVICE_NAME = "Proxy"
 BLUETOOTH_ADDRESS = "DA:97:7C:BA:A3:7A"
 AIRPLAY_IDENTIFIER = "4D797FD3-3538-427E-A47B-A32FC6CF3A6A"
 
+# HID event data structure constants
+HID_EVENT_DATA_START_OFFSET = 43  # Where key info starts in HID event data
+HID_EVENT_DATA_END_OFFSET = 49    # Where key info ends in HID event data
+HID_EVENT_MIN_LENGTH = 49         # Minimum length of HID event data
+BUTTON_PRESSED = 1                # HID event: button pressed down
+BUTTON_RELEASED = 0               # HID event: button released
+
 PROPERTY_CASE_MAP = {
     "rpad": "rpAD",
     "rpba": "rpBA",
@@ -104,29 +133,72 @@ COMPANION_AUTH_FRAMES = [
     FrameType.PV_Next,
 ]
 
+# Button mapping for HID events (from remote control)
+_KEY_LOOKUP = {
+    # (use_page, usage): button
+    (1, 0x8C): "up",
+    (1, 0x8D): "down",
+    (1, 0x8B): "left",
+    (1, 0x8A): "right",
+    (12, 0xB7): "stop",
+    (12, 0xB5): "next",
+    (12, 0xB6): "previous",
+    (1, 0x89): "select",
+    (1, 0x86): "menu",
+    (12, 0x60): "top_menu",
+    (12, 0x40): "home",
+    (1, 0x82): "suspend",
+    (1, 0x83): "wakeup",
+    (12, 0xE9): "volumeup",
+    (12, 0xEA): "volumedown",
+}
+
+# Command mapping for media control commands
+_COMMAND_LOOKUP = {
+    1: "play",
+    2: "pause",
+    3: "toggleplaypause",
+    4: "stop",
+    5: "nexttrack",
+    6: "previoustrack",
+    7: "advancerepeatmode",
+    8: "advanceshufflemode",
+    9: "beginff",
+    10: "beginrewind",
+    11: "seektoplaybackposition",
+    12: "changeplaybackrate",
+}
+
 
 class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
     """Implementation of a fake MRP Apple TV."""
 
-    def __init__(self, loop, address, port, credentials):
+    def __init__(self, loop, address=None, port=None, credentials=None):
         """Initialize a new instance of ProxyMrpAppleTV."""
         super().__init__(DEVICE_NAME)
         self.loop = loop
         self.buffer = b""
         self.transport = None
         self.chacha = None
-        self.connection = MrpConnection(address, port, self.loop)
-        self.protocol = MrpProtocol(
-            self.connection,
-            SRPAuthHandler(),
-            MutableService(None, Protocol.MRP, port, {}, credentials=credentials),
-            InfoSettings(),
-        )
+        self.standalone_mode = address is None  # No real Apple TV to connect to
+        
+        if not self.standalone_mode:
+            self.connection = MrpConnection(address, port, self.loop)
+            self.protocol = MrpProtocol(
+                self.connection,
+                SRPAuthHandler(),
+                MutableService(None, Protocol.MRP, port, {}, credentials=credentials),
+                InfoSettings(),
+            )
+        else:
+            self.connection = None
+            self.protocol = None
 
     async def start(self):
         """Start the proxy instance."""
-        await self.protocol.start(skip_initial_messages=True)
-        self.connection.listener = self
+        if not self.standalone_mode:
+            await self.protocol.start(skip_initial_messages=True)
+            self.connection.listener = self
         self._process_buffer()
 
     def stop(self):
@@ -134,7 +206,8 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
         if self.transport:
             self.transport.close()
             self.transport = None
-        self.protocol.stop()
+        if self.protocol:
+            self.protocol.stop()
 
     def connection_made(self, transport):
         """Client did connect to proxy."""
@@ -179,12 +252,13 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
 
     def message_received(self, _, raw):
         """Message received from ATV."""
-        self.send_raw(raw)
+        if not self.standalone_mode:
+            self.send_raw(raw)
 
     def data_received(self, data):
         """Message received from iOS app/client."""
         self.buffer += data
-        if self.connection.connected:
+        if self.standalone_mode or self.connection.connected:
             self._process_buffer()
 
     def _process_buffer(self):
@@ -209,9 +283,57 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
                 elif message.type == protobuf.CRYPTO_PAIRING_MESSAGE:
                     self.handle_crypto_pairing(message, message.inner())
                 else:
-                    self.connection.send_raw(data)
+                    # Detect and print button presses
+                    self._detect_button_press(message)
+                    # Only forward to Apple TV if not in standalone mode
+                    if not self.standalone_mode:
+                        self.connection.send_raw(data)
+                    else:
+                        # Send a success response back to the client
+                        self._send_success_response(message)
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Error while dispatching message")
+
+    def _send_success_response(self, message):
+        """Send a generic success response for standalone mode."""
+        try:
+            # For most commands, just send an empty response with the same identifier
+            response = messages.create(0, identifier=message.identifier)
+            self.send_to_client(response)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not send response for message type %s", message.type)
+
+    def _detect_button_press(self, message):
+        """Detect and print button presses from the remote control."""
+        try:
+            if message.type == protobuf.SEND_HID_EVENT_MESSAGE:
+                inner = message.inner()
+                # Parse HID event data
+                # The HID event data contains key information at specific byte offsets
+                if len(inner.hidEventData) >= HID_EVENT_MIN_LENGTH:
+                    start = inner.hidEventData[HID_EVENT_DATA_START_OFFSET:HID_EVENT_DATA_END_OFFSET]
+                    use_page, usage, down_press = struct.unpack(">HHH", start)
+                    
+                    if down_press == BUTTON_RELEASED:  # Button released
+                        button_name = _KEY_LOOKUP.get((use_page, usage))
+                        if button_name:
+                            print(f"\n>>> BUTTON PRESSED: {button_name.upper()} <<<\n")
+                            _LOGGER.info("Button pressed: %s", button_name)
+                        else:
+                            print(f"\n>>> UNKNOWN BUTTON: use_page={use_page}, usage={usage} <<<\n")
+            
+            elif message.type == protobuf.SEND_COMMAND_MESSAGE:
+                inner = message.inner()
+                command = inner.command
+                command_name = _COMMAND_LOOKUP.get(command)
+                if command_name:
+                    print(f"\n>>> COMMAND: {command_name.upper()} <<<\n")
+                    _LOGGER.info("Command: %s", command_name)
+                else:
+                    print(f"\n>>> UNKNOWN COMMAND: {command} <<<\n")
+                    
+        except Exception as e:
+            _LOGGER.debug("Error detecting button press: %s", e)
 
 
 class CompanionAppleTVProxy(
@@ -1462,11 +1584,19 @@ async def publish_airplay_service(
 
 
 async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
+    # Determine if we're in standalone mode (no Apple TV connection)
+    standalone_mode = args.remote_ip is None
+    
     def proxy_factory():
         try:
-            proxy = MrpAppleTVProxy(
-                loop, args.remote_ip, args.remote_port, args.credentials
-            )
+            if standalone_mode:
+                # Standalone mode: just capture buttons without forwarding
+                proxy = MrpAppleTVProxy(loop)
+            else:
+                # Proxy mode: forward to real Apple TV
+                proxy = MrpAppleTVProxy(
+                    loop, args.remote_ip, args.remote_port, args.credentials
+                )
             asyncio.ensure_future(
                 proxy.start(),
                 loop=loop,
@@ -1477,11 +1607,20 @@ async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
         return proxy
 
     if args.local_ip is None:
-        args.local_ip = str(net.get_local_address_reaching(IPv4Address(args.remote_ip)))
+        if standalone_mode:
+            # Get any local address for standalone mode
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(("8.8.8.8", 80))
+                args.local_ip = s.getsockname()[0]
+            finally:
+                s.close()
+        else:
+            args.local_ip = str(net.get_local_address_reaching(IPv4Address(args.remote_ip)))
 
     _LOGGER.debug("Binding to local address %s", args.local_ip)
 
-    if not (args.remote_port or args.name):
+    if not standalone_mode and not (args.remote_port or args.name):
         resp = await mdns.unicast(loop, args.remote_ip, ["_mediaremotetv._tcp.local"])
 
         if not args.remote_port:
@@ -1496,6 +1635,17 @@ async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
     server = await loop.create_server(proxy_factory, "0.0.0.0")
     port = server.sockets[0].getsockname()[1]
     _LOGGER.info("Started MRP server at port %d", port)
+    
+    if standalone_mode:
+        _LOGGER.info("")
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("STANDALONE MODE: Button capture only")
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("Connect with Apple TV Remote app to: %s", args.name)
+        _LOGGER.info("Button presses will be printed to the console")
+        _LOGGER.info("No forwarding to real Apple TV")
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("")
 
     unpublisher = await publish_mrp_service(zconf, args.local_ip, port, args.name)
 
@@ -1624,11 +1774,11 @@ async def appstart(loop):
     subparsers = parser.add_subparsers(title="sub-commands", dest="command")
 
     mrp = subparsers.add_parser("mrp", help="MRP proxy")
-    mrp.add_argument("credentials", help="MRP credentials")
-    mrp.add_argument("remote_ip", help="Apple TV IP address")
+    mrp.add_argument("--credentials", default=None, help="MRP credentials (optional, for forwarding to real Apple TV)")
+    mrp.add_argument("--remote-ip", default=None, help="Apple TV IP address (optional, for forwarding to real Apple TV)")
     mrp.add_argument("--name", default=None, help="proxy device name")
     mrp.add_argument("--local-ip", default=None, help="local IP address")
-    mrp.add_argument("--remote_port", default=None, help="MRP port")
+    mrp.add_argument("--remote-port", default=None, type=int, help="MRP port")
 
     companion = subparsers.add_parser("companion", help="Companion proxy")
     companion.add_argument("credentials", help="Companion credentials")

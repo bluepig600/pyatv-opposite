@@ -20,7 +20,6 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "Fake Apple TV"
 DEFAULT_ID = "4D797FD3-3538-427E-A47B-A32FC6CF3A6A"
-AIRPLAY_IDENTIFIER = "4D797FD3-3538-427E-A47B-A32FC6CF3A6A"
 
 
 def _mdns_type(protocol: Protocol) -> str:
@@ -64,7 +63,7 @@ async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, pro
             b"BluetoothAddress": b"False",
             b"SystemBuildVersion": b"18M60",
             b"UniqueIdentifier": service_id.encode("utf-8"),
-            b"LocalAirPlayReceiverPairingIdentity": AIRPLAY_IDENTIFIER.encode("utf-8"),
+            b"LocalAirPlayReceiverPairingIdentity": service_id.encode("utf-8"),
         }
     elif protocol == Protocol.AirPlay:
         props = {

@@ -27,6 +27,7 @@ from functools import partial
 from io import BytesIO
 from ipaddress import IPv4Address
 import logging
+import socket
 import struct
 import sys
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union, cast
@@ -76,6 +77,7 @@ from pyatv.protocols.companion.protocol import (
 )
 from pyatv.protocols.companion.server_auth import CompanionServerAuth
 from pyatv.protocols.mrp import protobuf
+from pyatv.protocols.mrp import messages
 from pyatv.protocols.mrp.connection import MrpConnection
 from pyatv.protocols.mrp.protocol import MrpProtocol
 from pyatv.protocols.mrp.server_auth import MrpServerAuth
@@ -104,6 +106,13 @@ _LOGGER = logging.getLogger(__name__)
 DEVICE_NAME = "Proxy"
 BLUETOOTH_ADDRESS = "DA:97:7C:BA:A3:7A"
 AIRPLAY_IDENTIFIER = "4D797FD3-3538-427E-A47B-A32FC6CF3A6A"
+
+# HID event data structure constants
+HID_EVENT_DATA_START_OFFSET = 43  # Where key info starts in HID event data
+HID_EVENT_DATA_END_OFFSET = 49    # Where key info ends in HID event data
+HID_EVENT_MIN_LENGTH = 49         # Minimum length of HID event data
+BUTTON_PRESSED = 1                # HID event: button pressed down
+BUTTON_RELEASED = 0               # HID event: button released
 
 PROPERTY_CASE_MAP = {
     "rpad": "rpAD",
@@ -289,7 +298,6 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
         """Send a generic success response for standalone mode."""
         try:
             # For most commands, just send an empty response with the same identifier
-            from pyatv.protocols.mrp import messages
             response = messages.create(0, identifier=message.identifier)
             self.send_to_client(response)
         except Exception:  # pylint: disable=broad-except
@@ -300,12 +308,13 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
         try:
             if message.type == protobuf.SEND_HID_EVENT_MESSAGE:
                 inner = message.inner()
-                # Parse HID event data (bytes 43:49 contain the key info)
-                if len(inner.hidEventData) >= 49:
-                    start = inner.hidEventData[43:49]
+                # Parse HID event data
+                # The HID event data contains key information at specific byte offsets
+                if len(inner.hidEventData) >= HID_EVENT_MIN_LENGTH:
+                    start = inner.hidEventData[HID_EVENT_DATA_START_OFFSET:HID_EVENT_DATA_END_OFFSET]
                     use_page, usage, down_press = struct.unpack(">HHH", start)
                     
-                    if down_press == 0:  # Button released
+                    if down_press == BUTTON_RELEASED:  # Button released
                         button_name = _KEY_LOOKUP.get((use_page, usage))
                         if button_name:
                             print(f"\n>>> BUTTON PRESSED: {button_name.upper()} <<<\n")
@@ -1600,7 +1609,6 @@ async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
     if args.local_ip is None:
         if standalone_mode:
             # Get any local address for standalone mode
-            import socket
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
                 s.connect(("8.8.8.8", 80))

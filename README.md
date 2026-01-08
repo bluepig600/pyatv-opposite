@@ -72,10 +72,9 @@ pip install -e .
 # Great, but how do I use it?
 
 All documentation (especially for developers) are available at [pyatv.dev](https://pyatv.dev).
-After installation, you can set up a new device using `atvremote`:
+After installation (see [Installation](#installation) section above), you can set up a new device using `atvremote`:
 
 ```raw
-$ pip install pyatv
 $ atvremote wizard
 Looking for devices...
 Found the following devices:

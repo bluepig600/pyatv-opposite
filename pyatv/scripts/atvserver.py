@@ -70,10 +70,7 @@ async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, pro
         }
     elif protocol == Protocol.DMAP:
         props = {
-            b"DvNm": name.encode("utf-8"),
-            b"RemV": b"10000",
-            b"DvTy": b"iPod",
-            b"RemN": b"Remote",
+            b"CtlN": name.encode("utf-8"),
         }
     elif protocol == Protocol.Companion:
         props = {

@@ -58,12 +58,12 @@ class PlayingResponse:
 
 
 class FakeDmapState:
-    def __init__(self, hsgid, pairing_guid, session_id):
+    def __init__(self, hsgid=None, pairing_guid=None, session_id=None):
         self.device = None
-        self.hsgid = hsgid
-        self.pairing_guid = pairing_guid
-        self.session_id = session_id
-        self.login_response = LoginResponse(session_id, 200)
+        self.hsgid = hsgid or "00000000-1111-2222-3333-444444444444"
+        self.pairing_guid = pairing_guid or "0x0000000000000001"
+        self.session_id = session_id or 1
+        self.login_response = LoginResponse(self.session_id, 200)
         self.playing = PlayingResponse()
         self.pairing_responses = {}  # Remote name -> expected code
         self.session = None

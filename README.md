@@ -168,14 +168,16 @@ INFO - Server 'My Fake Apple TV' is running. Press Ctrl+C to stop.
 
 The fake Apple TV will now appear in the Apple TV Remote app on iOS devices on the same network!
 
+**Note:** The iPhone/iPad Remote app requires **MRP protocol** (`--mrp`) to discover and control devices. The `--dmap` protocol is only for legacy Apple TV 3 and earlier devices and will not appear in modern iOS Remote apps.
+
 ### Command Line Options
 
 The `atvserver` command supports the following options:
 
 **Protocol Options:**
-- `--mrp`: Enable Media Remote Protocol (for Apple TV 4 and later). Allows remote control.
+- `--mrp`: Enable Media Remote Protocol (for Apple TV 4 and later). **Required for iPhone/iPad Remote app.**
 - `--airplay`: Enable AirPlay protocol. Allows video/audio streaming.
-- `--dmap`: Enable DMAP protocol (for Apple TV 3 and earlier). Legacy remote control.
+- `--dmap`: Enable DMAP protocol (for Apple TV 3 and earlier). Legacy remote control - not supported by modern iOS Remote apps.
 - `--companion`: Enable Companion protocol. For device pairing and authentication.
 - `--raop`: Enable RAOP (Remote Audio Output Protocol). For audio streaming.
 - `--all`: Enable all protocols at once.

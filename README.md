@@ -37,10 +37,42 @@ Some examples include:
 
 ...and lots more! A complete list is available [here](https://pyatv.dev/documentation/supported_features/).
 
+# Installation
+
+## Installing from GitHub
+
+**Note:** This fork (pyatv-opposite) is not available on PyPI. You must install it directly from GitHub.
+
+Install the latest version from the main branch:
+
+```shell
+pip install git+https://github.com/bluepig600/pyatv-opposite.git
+```
+
+Or install a specific branch:
+
+```shell
+pip install git+https://github.com/bluepig600/pyatv-opposite.git@refs/heads/<branch_name>
+```
+
+Or install from a specific commit:
+
+```shell
+pip install git+https://github.com/bluepig600/pyatv-opposite.git@<commit_hash>
+```
+
+For development, you can clone the repository and install in editable mode:
+
+```shell
+git clone https://github.com/bluepig600/pyatv-opposite.git
+cd pyatv-opposite
+pip install -e .
+```
+
 # Great, but how do I use it?
 
 All documentation (especially for developers) are available at [pyatv.dev](https://pyatv.dev).
-It is however possible to install with `pip` and set up a new device `atvremote`:
+After installation, you can set up a new device using `atvremote`:
 
 ```raw
 $ pip install pyatv
@@ -87,12 +119,20 @@ $ atvremote -s 10.0.10.254 pause
 $ atvremote -n FakeATV play
 ```
 
-## Running as an Apple TV Server
+## Running as an Apple TV Server (Fake Apple TV)
 
-You can also run pyatv as a server that emulates an Apple TV, allowing you to receive commands from the Apple TV Remote app:
+One of the most powerful features of pyatv is the ability to emulate an Apple TV device. This allows you to:
+
+- **Receive commands** from the Apple TV Remote app on iOS/iPadOS/macOS
+- **Test integrations** without physical Apple TV hardware
+- **Develop and debug** Apple TV control applications
+- **Build custom media servers** that appear as Apple TV devices on your network
+
+### Quick Start
+
+After installing pyatv from GitHub (see [Installation](#installation) section above), start a fake Apple TV server:
 
 ```raw
-$ pip install pyatv
 $ atvserver --name "My Fake Apple TV" --mrp --airplay
 INFO - Added MRP service
 INFO - Added AirPlay service
@@ -105,18 +145,47 @@ INFO - Server 'My Fake Apple TV' is running. Press Ctrl+C to stop.
 
 The fake Apple TV will now appear in the Apple TV Remote app on iOS devices on the same network!
 
-Available server options:
-- `--mrp`: Enable Media Remote Protocol (Apple TV 4 and later)
-- `--airplay`: Enable AirPlay protocol
-- `--dmap`: Enable DMAP protocol (Apple TV 3 and earlier)
-- `--companion`: Enable Companion protocol
-- `--raop`: Enable RAOP (Remote Audio Output Protocol)
-- `--all`: Enable all protocols
-- `--name`: Set custom device name
-- `--id`: Set custom unique identifier
-- `--debug`: Enable debug logging
+### Command Line Options
 
-You can also create a fake Apple TV server programmatically. See `examples/server.py` for a complete example.
+The `atvserver` command supports the following options:
+
+**Protocol Options:**
+- `--mrp`: Enable Media Remote Protocol (for Apple TV 4 and later). Allows remote control.
+- `--airplay`: Enable AirPlay protocol. Allows video/audio streaming.
+- `--dmap`: Enable DMAP protocol (for Apple TV 3 and earlier). Legacy remote control.
+- `--companion`: Enable Companion protocol. For device pairing and authentication.
+- `--raop`: Enable RAOP (Remote Audio Output Protocol). For audio streaming.
+- `--all`: Enable all protocols at once.
+
+**Server Options:**
+- `--name <name>`: Set custom device name (default: "Fake Apple TV")
+- `--id <identifier>`: Set custom unique identifier (default: auto-generated UUID)
+- `--debug`: Enable debug logging to see detailed protocol information
+
+**Common Usage Examples:**
+
+```shell
+# Basic fake Apple TV with remote control and streaming
+$ atvserver --name "Living Room TV" --mrp --airplay
+
+# Enable all protocols for maximum compatibility
+$ atvserver --name "Test Device" --all
+
+# Legacy Apple TV 3 emulation
+$ atvserver --name "Old Apple TV" --dmap
+
+# Debug mode to see all protocol interactions
+$ atvserver --name "Debug TV" --mrp --debug
+```
+
+### Programmatic Usage
+
+You can also create a fake Apple TV server in your Python code. This is useful for:
+- Building automated tests
+- Creating custom integrations
+- Embedding a fake Apple TV in your application
+
+**Basic Example:**
 
 ```python
 import asyncio
@@ -125,26 +194,61 @@ from pyatv.fake_device import FakeAppleTV
 
 async def main():
     loop = asyncio.get_event_loop()
+    
+    # Create a fake Apple TV instance
     fake_atv = FakeAppleTV(loop, test_mode=False)
+    
+    # Add services (protocols) you want to support
     fake_atv.add_service(Protocol.MRP)
+    fake_atv.add_service(Protocol.AirPlay)
+    
+    # Start the server
     await fake_atv.start()
-    # Server is now running...
+    
+    # Server is now running and discoverable on the network
+    print(f"Fake Apple TV running on port {fake_atv.get_port(Protocol.MRP)}")
+    
+    # Keep running until interrupted
+    try:
+        await asyncio.Event().wait()
+    except KeyboardInterrupt:
+        await fake_atv.stop()
 
 asyncio.run(main())
 ```
 
-You can also run it inside a container (x86_64, aarch64, armv7):
+**Advanced Example:**
+
+For more advanced usage including setting initial media state, monitoring commands, and customizing behavior, see the examples:
+- `examples/server.py` - Basic server setup with logging
+- `examples/advanced_server.py` - Advanced usage with custom state and monitoring
+
+### Testing and Development
+
+The fake Apple TV feature is particularly useful for:
+
+1. **Integration Testing**: Test your Apple TV control code without physical hardware
+2. **CI/CD Pipelines**: Run automated tests against a fake device in your continuous integration
+3. **Protocol Development**: Experiment with Apple TV protocols without affecting real devices
+4. **Demo and Presentations**: Show Apple TV functionality without requiring actual hardware
+
+## Using Docker (Original pyatv)
+
+**Note:** Pre-built Docker images are only available for the original pyatv project, not this fork. You can use the original images to test basic functionality:
 
 ```raw
 docker run -it --rm --network=host ghcr.io/postlund/pyatv:0.14.0 atvremote scan
 ```
 
-The `master` tag points to latest commit on the `master` branch and `latest`
-points to the latest release.
+The `master` tag points to latest commit on the `master` branch and `latest` points to the latest release.
+
+To use this fork with Docker, you'll need to build your own image using the provided Dockerfile.
 
 # I need to change something?
 
-Want to help out with `pyatv`? Press the button below to get a fully prepared development environment and get started right away!
+Want to help out with `pyatv-opposite`? You can fork this repository and submit pull requests!
+
+For the original `pyatv` project, you can use the Gitpod environment:
 
 [![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/postlund/pyatv)
 

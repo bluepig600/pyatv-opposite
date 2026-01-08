@@ -35,16 +35,16 @@ Here is a short summary of supported features:
 A complete list of supported features and limitations is available
 [here](documentation/supported_features).
 
-There are also few utility scripts bundled with pyatv that makes it easy to try the library
-out. Check out [atvremote](documentation/atvremote), [atvproxy](documentation/atvproxy),
+There are also several utility scripts bundled with pyatv that make it easy to try the library
+out. Check out [atvremote](documentation/atvremote), [atvserver](documentation/atvserver), [atvproxy](documentation/atvproxy),
 [atvscript](documentation/atvscript) and [atvlog](documentation/atvlog).
 
 # :eyes: Where to start?
 
-To get going, install with `pip`:
+**Important:** This fork (pyatv-opposite) is not available on PyPI. Install from GitHub:
 
 <div class="center_box" style="margin-bottom: 2em">
-  <p style="margin: 0px">:tada: <a href="https://pypi.org/project/pyatv">pip install pyatv :tada:</a></p>
+  <p style="margin: 0px">:tada: <code>pip install git+https://github.com/bluepig600/pyatv-opposite.git</code> :tada:</p>
 </div>
 
 Head over to [Getting started](documentation/getting-started) to see what you can do! There's

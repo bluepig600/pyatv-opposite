@@ -15,11 +15,15 @@ Here is the *jumpstart* guide to get going fast!
 
 # Installation
 
+**Important:** This fork (pyatv-opposite) is not available on PyPI. You must install it directly from GitHub.
+
+Install from the main branch:
+
 ```shell
-pip3 install {{ site.pyatv_version }}
+pip3 install git+https://github.com/bluepig600/pyatv-opposite.git
 ```
 
-See [Installing pyatv](/documentation/#installing-pyatv) for more alternatives.
+For more installation options (specific branches, commits, or development mode), see [Installing pyatv](/documentation/#installing-pyatv).
 
 # Using atvremote
 

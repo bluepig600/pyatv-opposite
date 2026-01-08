@@ -19,16 +19,60 @@ first.
 
 # Installing pyatv
 
-You can install/run pyatv either in a container using pre-built images or a virtual environment.
+This fork (pyatv-opposite) is not available on PyPI. You must install it directly from GitHub.
+
+## From GitHub (Required for this fork)
+
+### Latest Version from Main Branch
+
+```shell
+pip3 install git+https://github.com/bluepig600/pyatv-opposite.git
+```
+
+### Specific Branch
+
+To install from a specific branch:
+
+```shell
+pip3 install git+https://github.com/bluepig600/pyatv-opposite.git@refs/heads/<branch_name>
+```
+
+Replace `<branch_name>` with the name of the branch you want to install.
+
+### Specific Commit
+
+To install from a specific commit:
+
+```shell
+pip3 install git+https://github.com/bluepig600/pyatv-opposite.git@<commit_hash>
+```
+
+Replace `<commit_hash>` with the full commit hash.
+
+### Development Installation
+
+For development, clone the repository and install in editable mode:
+
+```shell
+git clone https://github.com/bluepig600/pyatv-opposite.git
+cd pyatv-opposite
+pip3 install -e .
+```
+
+This allows you to modify the code and see changes immediately without reinstalling.
 
 ## Container (Docker)
 
+**Note:** Pre-built container images are only available for the original pyatv project. To use this fork with Docker, you'll need to build your own image using the provided Dockerfile.
+
+You can still run the original pyatv container for testing or comparison:
+
 Starting with release 0.9.0, container images for x86_64, aarch64 and armv7 are automatically built and
-available from GitHub. Images are published per version (e.g. v0.9.0, v0.9.1, etc.) and the latest
+available from GitHub (for the original pyatv project only). Images are published per version (e.g. v0.9.0, v0.9.1, etc.) and the latest
 commit on `master` (just labeled with `latest`). See the [images](https://github.com/postlund/pyatv/pkgs/container/pyatv)
 page for all available images.
 
-To test atvremote, you can run:
+To test the original pyatv with atvremote:
 
 ```shell
 $ docker run -it --rm --network=host ghcr.io/postlund/pyatv:master atvremote scan
@@ -66,41 +110,7 @@ This creates a virtual environment in a directory called `pyatv_venv`. The
 second command activates the virtual environment and must be done every
 time a new shell is started.
 
-Now you can continue by installing the version of pyatv you want.
-
-### Latest Stable Version
-
-Install pyatv using `pip3`:
-
-```shell
-pip3 install {{ site.pyatv_version }}
-```
-
-### Development Version
-
-To try out the latest development version (a.k.a. `master` on GitHub), you can install with:
-
-```shell
-pip3 install --upgrade git+https://github.com/postlund/pyatv.git
-```
-
-### Specific Branch or a Pull Request
-
-To install from a branch, you can install like this:
-
-```shell
-pip3 install --upgrade git+https://github.com/postlund/pyatv.git@refs/heads/<branch>
-```
-
-Replace `<branch>` with the name of the branch.
-
-It is also possible to install directly from a pull request:
-
-```shell
-pip3 install git+https://github.com/postlund/pyatv.git@refs/pull/<id>/head
-```
-
-Replace `<id>` with the pull request number.
+After setting up your virtual environment, install pyatv-opposite using the GitHub installation methods shown above.
 
 # Testing with GitPod
 

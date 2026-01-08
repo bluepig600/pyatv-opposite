@@ -4,16 +4,20 @@
 This proxy allows the Apple TV Remote app to connect and prints out button presses.
 
 Usage examples:
-    # MRP proxy (for Apple TV Remote app button presses):
-    atvproxy mrp <credentials> <apple_tv_ip>
+    # Standalone mode (NO credentials needed - just capture buttons):
+    atvproxy mrp
     
-    # Example:
-    atvproxy mrp 1234567890abcdef:1234567890abcdef 192.168.1.100
+    # Proxy mode (forward to real Apple TV):
+    atvproxy mrp --credentials <credentials> --remote-ip <apple_tv_ip>
     
-When the Apple TV Remote app connects through this proxy, all button presses
-will be printed to the console in the format:
+    # Example with credentials:
+    atvproxy mrp --credentials 1234567890abcdef:1234567890abcdef --remote-ip 192.168.1.100
+    
+When the Apple TV Remote app connects, all button presses will be printed:
     >>> BUTTON PRESSED: UP <<<
     >>> COMMAND: PLAY <<<
+    
+In standalone mode, commands are not forwarded to a real Apple TV.
 """
 
 import argparse
@@ -160,25 +164,32 @@ _COMMAND_LOOKUP = {
 class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
     """Implementation of a fake MRP Apple TV."""
 
-    def __init__(self, loop, address, port, credentials):
+    def __init__(self, loop, address=None, port=None, credentials=None):
         """Initialize a new instance of ProxyMrpAppleTV."""
         super().__init__(DEVICE_NAME)
         self.loop = loop
         self.buffer = b""
         self.transport = None
         self.chacha = None
-        self.connection = MrpConnection(address, port, self.loop)
-        self.protocol = MrpProtocol(
-            self.connection,
-            SRPAuthHandler(),
-            MutableService(None, Protocol.MRP, port, {}, credentials=credentials),
-            InfoSettings(),
-        )
+        self.standalone_mode = address is None  # No real Apple TV to connect to
+        
+        if not self.standalone_mode:
+            self.connection = MrpConnection(address, port, self.loop)
+            self.protocol = MrpProtocol(
+                self.connection,
+                SRPAuthHandler(),
+                MutableService(None, Protocol.MRP, port, {}, credentials=credentials),
+                InfoSettings(),
+            )
+        else:
+            self.connection = None
+            self.protocol = None
 
     async def start(self):
         """Start the proxy instance."""
-        await self.protocol.start(skip_initial_messages=True)
-        self.connection.listener = self
+        if not self.standalone_mode:
+            await self.protocol.start(skip_initial_messages=True)
+            self.connection.listener = self
         self._process_buffer()
 
     def stop(self):
@@ -186,7 +197,8 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
         if self.transport:
             self.transport.close()
             self.transport = None
-        self.protocol.stop()
+        if self.protocol:
+            self.protocol.stop()
 
     def connection_made(self, transport):
         """Client did connect to proxy."""
@@ -231,12 +243,13 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
 
     def message_received(self, _, raw):
         """Message received from ATV."""
-        self.send_raw(raw)
+        if not self.standalone_mode:
+            self.send_raw(raw)
 
     def data_received(self, data):
         """Message received from iOS app/client."""
         self.buffer += data
-        if self.connection.connected:
+        if self.standalone_mode or self.connection.connected:
             self._process_buffer()
 
     def _process_buffer(self):
@@ -261,11 +274,26 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
                 elif message.type == protobuf.CRYPTO_PAIRING_MESSAGE:
                     self.handle_crypto_pairing(message, message.inner())
                 else:
-                    # Detect and print button presses before forwarding
+                    # Detect and print button presses
                     self._detect_button_press(message)
-                    self.connection.send_raw(data)
+                    # Only forward to Apple TV if not in standalone mode
+                    if not self.standalone_mode:
+                        self.connection.send_raw(data)
+                    else:
+                        # Send a success response back to the client
+                        self._send_success_response(message)
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Error while dispatching message")
+
+    def _send_success_response(self, message):
+        """Send a generic success response for standalone mode."""
+        try:
+            # For most commands, just send an empty response with the same identifier
+            from pyatv.protocols.mrp import messages
+            response = messages.create(0, identifier=message.identifier)
+            self.send_to_client(response)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not send response for message type %s", message.type)
 
     def _detect_button_press(self, message):
         """Detect and print button presses from the remote control."""
@@ -1547,11 +1575,19 @@ async def publish_airplay_service(
 
 
 async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
+    # Determine if we're in standalone mode (no Apple TV connection)
+    standalone_mode = args.remote_ip is None
+    
     def proxy_factory():
         try:
-            proxy = MrpAppleTVProxy(
-                loop, args.remote_ip, args.remote_port, args.credentials
-            )
+            if standalone_mode:
+                # Standalone mode: just capture buttons without forwarding
+                proxy = MrpAppleTVProxy(loop)
+            else:
+                # Proxy mode: forward to real Apple TV
+                proxy = MrpAppleTVProxy(
+                    loop, args.remote_ip, args.remote_port, args.credentials
+                )
             asyncio.ensure_future(
                 proxy.start(),
                 loop=loop,
@@ -1562,11 +1598,21 @@ async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
         return proxy
 
     if args.local_ip is None:
-        args.local_ip = str(net.get_local_address_reaching(IPv4Address(args.remote_ip)))
+        if standalone_mode:
+            # Get any local address for standalone mode
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.connect(("8.8.8.8", 80))
+                args.local_ip = s.getsockname()[0]
+            finally:
+                s.close()
+        else:
+            args.local_ip = str(net.get_local_address_reaching(IPv4Address(args.remote_ip)))
 
     _LOGGER.debug("Binding to local address %s", args.local_ip)
 
-    if not (args.remote_port or args.name):
+    if not standalone_mode and not (args.remote_port or args.name):
         resp = await mdns.unicast(loop, args.remote_ip, ["_mediaremotetv._tcp.local"])
 
         if not args.remote_port:
@@ -1581,6 +1627,17 @@ async def _start_mrp_proxy(loop, args, zconf: Zeroconf):
     server = await loop.create_server(proxy_factory, "0.0.0.0")
     port = server.sockets[0].getsockname()[1]
     _LOGGER.info("Started MRP server at port %d", port)
+    
+    if standalone_mode:
+        _LOGGER.info("")
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("STANDALONE MODE: Button capture only")
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("Connect with Apple TV Remote app to: %s", args.name)
+        _LOGGER.info("Button presses will be printed to the console")
+        _LOGGER.info("No forwarding to real Apple TV")
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("")
 
     unpublisher = await publish_mrp_service(zconf, args.local_ip, port, args.name)
 
@@ -1709,11 +1766,11 @@ async def appstart(loop):
     subparsers = parser.add_subparsers(title="sub-commands", dest="command")
 
     mrp = subparsers.add_parser("mrp", help="MRP proxy")
-    mrp.add_argument("credentials", help="MRP credentials")
-    mrp.add_argument("remote_ip", help="Apple TV IP address")
+    mrp.add_argument("--credentials", default=None, help="MRP credentials (optional, for forwarding to real Apple TV)")
+    mrp.add_argument("--remote-ip", default=None, help="Apple TV IP address (optional, for forwarding to real Apple TV)")
     mrp.add_argument("--name", default=None, help="proxy device name")
     mrp.add_argument("--local-ip", default=None, help="local IP address")
-    mrp.add_argument("--remote_port", default=None, help="MRP port")
+    mrp.add_argument("--remote-port", default=None, type=int, help="MRP port")
 
     companion = subparsers.add_parser("companion", help="Companion proxy")
     companion.add_argument("credentials", help="Companion credentials")

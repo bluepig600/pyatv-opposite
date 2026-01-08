@@ -4,21 +4,48 @@ This example shows how to use `atvproxy.py` to capture button presses from the A
 
 ## Overview
 
-The `atvproxy` command creates a proxy server that sits between the Apple TV Remote app and your actual Apple TV. When you connect the Remote app to the proxy, it will:
+The `atvproxy` command creates a server that allows the Apple TV Remote app to connect and prints out all button presses to the console.
 
-1. Forward all commands to the real Apple TV
-2. Print out all button presses to the console
-3. Allow you to see what buttons are being pressed in real-time
+**NEW: No credentials required!** The proxy now works in standalone mode without needing to connect to a real Apple TV.
 
-## Prerequisites
+## Two Modes of Operation
 
-1. An Apple TV on your network
-2. MRP credentials for your Apple TV (obtained through pairing)
-3. The Apple TV Remote app on iOS/iPadOS
+### 1. Standalone Mode (Recommended - No Credentials Needed)
 
-## Getting MRP Credentials
+In this mode, the proxy simply captures button presses without forwarding to a real Apple TV:
 
-If you don't have MRP credentials yet, you can obtain them using `atvremote`:
+```bash
+atvproxy mrp
+```
+
+That's it! No credentials, no Apple TV needed. Just run the command and connect with the Remote app.
+
+### 2. Proxy Mode (Forward to Real Apple TV)
+
+In this mode, the proxy forwards commands to a real Apple TV while capturing button presses:
+
+```bash
+atvproxy mrp --credentials <credentials> --remote-ip <apple_tv_ip>
+```
+
+## Quick Start (No Credentials Required)
+
+1. Run the proxy:
+```bash
+atvproxy mrp
+```
+
+2. Open the Apple TV Remote app on your iOS device
+
+3. Look for a device named "Proxy"
+
+4. Tap on it to connect
+
+5. Press buttons and watch them appear in the console!
+
+## Getting MRP Credentials (Only for Proxy Mode)
+
+If you want to forward commands to a real Apple TV, you'll need credentials:
 
 ```bash
 # Scan for Apple TVs on your network
@@ -33,23 +60,41 @@ atvremote scan
 
 The credentials will be shown in the format: `<client_id>:<credential>`
 
-## Running the Button Capture Proxy
+## Running the Button Capture
+
+### Standalone Mode (No Apple TV Required)
+
+Just run:
+```bash
+atvproxy mrp
+```
+
+Optional arguments:
+```bash
+# Custom device name
+atvproxy mrp --name "My Button Capture"
+
+# Specify local IP (if multiple network interfaces)
+atvproxy mrp --local-ip 192.168.1.50
+```
+
+### Proxy Mode (Forward to Apple TV)
 
 Once you have your credentials, start the proxy:
 
 ```bash
-atvproxy mrp <credentials> <apple_tv_ip>
+atvproxy mrp --credentials <credentials> --remote-ip <apple_tv_ip>
 ```
 
 **Example:**
 ```bash
-atvproxy mrp 1234567890abcdef:fedcba0987654321 192.168.1.100
+atvproxy mrp --credentials 1234567890abcdef:fedcba0987654321 --remote-ip 192.168.1.100
 ```
 
 The proxy will:
 - Start an MRP server on a random port
 - Publish itself via mDNS (Bonjour) so the Remote app can discover it
-- Connect to your real Apple TV
+- Connect to your real Apple TV (if in proxy mode)
 - Wait for the Remote app to connect
 
 ## Connecting the Apple TV Remote App
@@ -111,29 +156,40 @@ The proxy can detect the following buttons:
 
 ### Custom Device Name
 ```bash
-atvproxy mrp <credentials> <apple_tv_ip> --name "My Proxy"
+atvproxy mrp --name "My Proxy"
 ```
 
 ### Specify Local IP
 If you have multiple network interfaces:
 ```bash
-atvproxy mrp <credentials> <apple_tv_ip> --local-ip 192.168.1.50
+atvproxy mrp --local-ip 192.168.1.50
 ```
 
-### Debug Mode
-To see detailed protocol information:
+### Proxy Mode with All Options
 ```bash
-# The logging is controlled by the script's logging configuration
-# Look at the console output for detailed message information
+atvproxy mrp \
+  --credentials 1234567890abcdef:fedcba0987654321 \
+  --remote-ip 192.168.1.100 \
+  --remote-port 49152 \
+  --name "My Proxy" \
+  --local-ip 192.168.1.50
 ```
 
 ## How It Works
 
-The proxy uses the Media Remote Protocol (MRP) to communicate with both the Remote app and the Apple TV:
+The proxy uses the Media Remote Protocol (MRP) to communicate with the Remote app:
 
+### Standalone Mode
 1. **Discovery**: The proxy publishes itself as an Apple TV device via mDNS
 2. **Connection**: The Remote app connects to the proxy thinking it's an Apple TV
 3. **Authentication**: The proxy handles HAP pairing automatically
+4. **Button Capture**: All button presses are captured and printed
+5. **Responses**: The proxy sends success responses back to keep the Remote app happy
+
+### Proxy Mode
+1. **Discovery**: The proxy publishes itself as an Apple TV device via mDNS
+2. **Connection**: The Remote app connects to the proxy
+3. **Authentication**: The proxy handles HAP pairing
 4. **Message Forwarding**: All messages are:
    - Received from the Remote app
    - Inspected for button presses (HID events and commands)
@@ -146,18 +202,20 @@ Press `Enter` or `Ctrl+C` to stop the proxy server.
 
 ## Troubleshooting
 
-### "Connection refused" or "No route to host"
-- Make sure the Apple TV IP address is correct
-- Verify your Apple TV is turned on and connected to the network
-
-### "Authentication failed"
-- Make sure you're using valid MRP credentials
-- Try re-pairing with your Apple TV using `atvremote`
-
 ### Remote app doesn't see the proxy
 - Make sure you're on the same network as the proxy
 - Check that mDNS/Bonjour is working on your network
 - Try using the `--local-ip` option to specify your network interface
+
+### Proxy Mode Issues
+
+#### "Connection refused" or "No route to host"
+- Make sure the Apple TV IP address is correct
+- Verify your Apple TV is turned on and connected to the network
+
+#### "Authentication failed"
+- Make sure you're using valid MRP credentials
+- Try re-pairing with your Apple TV using `atvremote`
 
 ### No button presses are printed
 - Make sure the Remote app is connected to the proxy, not directly to the Apple TV

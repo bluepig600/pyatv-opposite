@@ -8,6 +8,7 @@ from functools import partial
 from io import BytesIO
 from ipaddress import IPv4Address
 import logging
+import struct
 import sys
 from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union, cast
 
@@ -103,6 +104,42 @@ COMPANION_AUTH_FRAMES = [
     FrameType.PV_Start,
     FrameType.PV_Next,
 ]
+
+# Button mapping for HID events (from remote control)
+_KEY_LOOKUP = {
+    # (use_page, usage): button
+    (1, 0x8C): "up",
+    (1, 0x8D): "down",
+    (1, 0x8B): "left",
+    (1, 0x8A): "right",
+    (12, 0xB7): "stop",
+    (12, 0xB5): "next",
+    (12, 0xB6): "previous",
+    (1, 0x89): "select",
+    (1, 0x86): "menu",
+    (12, 0x60): "top_menu",
+    (12, 0x40): "home",
+    (1, 0x82): "suspend",
+    (1, 0x83): "wakeup",
+    (12, 0xE9): "volumeup",
+    (12, 0xEA): "volumedown",
+}
+
+# Command mapping for media control commands
+_COMMAND_LOOKUP = {
+    1: "play",
+    2: "pause",
+    3: "toggleplaypause",
+    4: "stop",
+    5: "nexttrack",
+    6: "previoustrack",
+    7: "advancerepeatmode",
+    8: "advanceshufflemode",
+    9: "beginff",
+    10: "beginrewind",
+    11: "seektoplaybackposition",
+    12: "changeplaybackrate",
+}
 
 
 class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
@@ -209,9 +246,42 @@ class MrpAppleTVProxy(MrpServerAuth, asyncio.Protocol):
                 elif message.type == protobuf.CRYPTO_PAIRING_MESSAGE:
                     self.handle_crypto_pairing(message, message.inner())
                 else:
+                    # Detect and print button presses before forwarding
+                    self._detect_button_press(message)
                     self.connection.send_raw(data)
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Error while dispatching message")
+
+    def _detect_button_press(self, message):
+        """Detect and print button presses from the remote control."""
+        try:
+            if message.type == protobuf.SEND_HID_EVENT_MESSAGE:
+                inner = message.inner()
+                # Parse HID event data (bytes 43:49 contain the key info)
+                if len(inner.hidEventData) >= 49:
+                    start = inner.hidEventData[43:49]
+                    use_page, usage, down_press = struct.unpack(">HHH", start)
+                    
+                    if down_press == 0:  # Button released
+                        button_name = _KEY_LOOKUP.get((use_page, usage))
+                        if button_name:
+                            print(f"\n>>> BUTTON PRESSED: {button_name.upper()} <<<\n")
+                            _LOGGER.info("Button pressed: %s", button_name)
+                        else:
+                            print(f"\n>>> UNKNOWN BUTTON: use_page={use_page}, usage={usage} <<<\n")
+            
+            elif message.type == protobuf.SEND_COMMAND_MESSAGE:
+                inner = message.inner()
+                command = inner.command
+                command_name = _COMMAND_LOOKUP.get(command)
+                if command_name:
+                    print(f"\n>>> COMMAND: {command_name.upper()} <<<\n")
+                    _LOGGER.info("Command: %s", command_name)
+                else:
+                    print(f"\n>>> UNKNOWN COMMAND: {command} <<<\n")
+                    
+        except Exception as e:
+            _LOGGER.debug("Error detecting button press: %s", e)
 
 
 class CompanionAppleTVProxy(

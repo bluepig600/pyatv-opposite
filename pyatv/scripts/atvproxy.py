@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""Simple proxy server to intercept traffic."""
+"""Simple proxy server to intercept traffic.
+
+This proxy allows the Apple TV Remote app to connect and prints out button presses.
+
+Usage examples:
+    # MRP proxy (for Apple TV Remote app button presses):
+    atvproxy mrp <credentials> <apple_tv_ip>
+    
+    # Example:
+    atvproxy mrp 1234567890abcdef:1234567890abcdef 192.168.1.100
+    
+When the Apple TV Remote app connects through this proxy, all button presses
+will be printed to the console in the format:
+    >>> BUTTON PRESSED: UP <<<
+    >>> COMMAND: PLAY <<<
+"""
 
 import argparse
 import asyncio

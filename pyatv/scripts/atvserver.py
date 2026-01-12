@@ -55,11 +55,15 @@ async def _publish_service(aiozc: AsyncZeroconf, name: str, service_id: str, pro
     props = {}
     if protocol == Protocol.MRP:
         props = {
+            b"ModelName": b"Apple TV",
             b"Name": name.encode("utf-8"),
             b"txtvers": b"1",
             b"AllowPairing": b"YES",
+            b"macAddress": b"40:cb:c0:12:34:56",
+            b"BluetoothAddress": b"False",
             b"SystemBuildVersion": b"18M60",
             b"UniqueIdentifier": service_id.encode("utf-8"),
+            b"LocalAirPlayReceiverPairingIdentity": service_id.encode("utf-8"),
         }
     elif protocol == Protocol.AirPlay:
         props = {
